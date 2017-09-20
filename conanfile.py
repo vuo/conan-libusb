@@ -5,7 +5,7 @@ class LibusbConan(ConanFile):
     name = 'libusb'
     version = '1.0.21'
     settings = 'os', 'compiler', 'build_type', 'arch'
-    url = 'http://libusb.info/' # @@@ should be url to package
+    url = 'https://github.com/vuo/conan-libusb'
     license = 'https://github.com/libusb/libusb/blob/master/COPYING'
     description = 'A library for USB device access'
     source_dir = 'libusb-%s' % version

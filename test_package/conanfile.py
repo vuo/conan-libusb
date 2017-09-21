@@ -13,4 +13,4 @@ class LibusbTestConan(ConanFile):
         self.run('qbs run')
 
         # Ensure we only link to system libraries.
-        self.run('! (otool -L bin/libusb-1.0.0.dylib | tail +3 | egrep -v "^\s*(/usr/lib/|/System/)")')
+        self.run('! (otool -L bin/libusb.dylib | tail +3 | egrep -v "^\s*(/usr/lib/|/System/)")')

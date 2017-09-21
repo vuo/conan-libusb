@@ -1,4 +1,5 @@
 from conans import ConanFile, tools, AutoToolsBuildEnvironment
+import shutil
 import os
 
 class LibusbConan(ConanFile):
@@ -10,8 +11,6 @@ class LibusbConan(ConanFile):
     description = 'A library for USB device access'
     source_dir = 'libusb-%s' % version
     build_dir = '_build'
-    # libusb calls itself 1.0.0 regardless of the actual release version.
-    dylib_name = 'libusb-1.0.0.dylib'
 
     def source(self):
         tools.get('https://github.com/libusb/libusb/releases/download/v%s/libusb-%s.tar.bz2' % (self.version, self.version),
@@ -24,17 +23,19 @@ class LibusbConan(ConanFile):
             autotools = AutoToolsBuildEnvironment(self)
             autotools.cxx_flags.append('-Oz')
             autotools.cxx_flags.append('-mmacosx-version-min=10.8')
-            autotools.link_flags.append('-Wl,-install_name,@rpath/%s' % self.dylib_name)
+            autotools.link_flags.append('-Wl,-install_name,@rpath/libusb.dylib')
             autotools.configure(configure_dir='../%s' % self.source_dir,
                                 args=['--quiet',
                                       '--enable-shared',
                                       '--disable-static',
                                       '--prefix=%s' % os.getcwd()])
             autotools.make(args=['install'])
+            # libusb calls itself 1.0.0 regardless of the actual release version.
+            shutil.move('lib/libusb-1.0.0.dylib', 'lib/libusb.dylib')
 
     def package(self):
         self.copy('*.h', src='%s/include' % self.build_dir, dst='include')
-        self.copy(self.dylib_name, src='%s/lib' % self.build_dir, dst='lib')
+        self.copy('libusb.dylib', src='%s/lib' % self.build_dir, dst='lib')
 
     def package_info(self):
-        self.cpp_info.libs = ['usb-1.0.0']
+        self.cpp_info.libs = ['usb']

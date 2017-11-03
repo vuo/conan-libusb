@@ -14,8 +14,7 @@ class LibusbConan(ConanFile):
 
     def source(self):
         tools.get('https://github.com/libusb/libusb/releases/download/v%s/libusb-%s.tar.bz2' % (self.version, self.version),
-                  # sha256='7dce9cce9a81194b7065ee912bcd55eeffebab694ea403ffb91b67db66b1824b'
-                  )
+                  sha256='7dce9cce9a81194b7065ee912bcd55eeffebab694ea403ffb91b67db66b1824b')
 
     def build(self):
         tools.mkdir(self.build_dir)

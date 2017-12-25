@@ -4,16 +4,20 @@ import os
 
 class LibusbConan(ConanFile):
     name = 'libusb'
-    version = '1.0.21'
+
+    source_version = '1.0.21'
+    package_version = '2'
+    version = '%s-%s' % (source_version, package_version)
+
     settings = 'os', 'compiler', 'build_type', 'arch'
     url = 'https://github.com/vuo/conan-libusb'
     license = 'https://github.com/libusb/libusb/blob/master/COPYING'
     description = 'A library for USB device access'
-    source_dir = 'libusb-%s' % version
+    source_dir = 'libusb-%s' % source_version
     build_dir = '_build'
 
     def source(self):
-        tools.get('https://github.com/libusb/libusb/releases/download/v%s/libusb-%s.tar.bz2' % (self.version, self.version),
+        tools.get('https://github.com/libusb/libusb/releases/download/v%s/libusb-%s.tar.bz2' % (self.source_version, self.source_version),
                   sha256='7dce9cce9a81194b7065ee912bcd55eeffebab694ea403ffb91b67db66b1824b')
 
     def build(self):
@@ -21,7 +25,7 @@ class LibusbConan(ConanFile):
         with tools.chdir(self.build_dir):
             autotools = AutoToolsBuildEnvironment(self)
             autotools.cxx_flags.append('-Oz')
-            autotools.cxx_flags.append('-mmacosx-version-min=10.8')
+            autotools.cxx_flags.append('-mmacosx-version-min=10.10')
             autotools.link_flags.append('-Wl,-install_name,@rpath/libusb.dylib')
             autotools.configure(configure_dir='../%s' % self.source_dir,
                                 args=['--quiet',

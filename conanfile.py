@@ -42,7 +42,6 @@ class LibusbConan(ConanFile):
             env_vars = {
                 'CC' : self.deps_cpp_info['llvm'].rootpath + '/bin/clang',
                 'CXX': self.deps_cpp_info['llvm'].rootpath + '/bin/clang++',
-                'PKG_CONFIG_PATH': self.deps_cpp_info["libffi"].rootpath,
             }
             with tools.environment_append(env_vars):
                 autotools.configure(configure_dir='../%s' % self.source_dir,

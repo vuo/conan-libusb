@@ -6,7 +6,7 @@ class LibusbConan(ConanFile):
     name = 'libusb'
 
     source_version = '1.0.21'
-    package_version = '2'
+    package_version = '3'
     version = '%s-%s' % (source_version, package_version)
 
     settings = 'os', 'compiler', 'build_type', 'arch'

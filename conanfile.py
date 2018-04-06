@@ -18,6 +18,12 @@ class LibusbConan(ConanFile):
     source_dir = 'libusb-%s' % source_version
     build_dir = '_build'
 
+    def requirements(self):
+        if platform.system() == 'Linux':
+            self.requires('patchelf/0.10pre-1@vuo/stable')
+        elif platform.system() != 'Darwin':
+            raise Exception('Unknown platform "%s"' % platform.system())
+
     def source(self):
         tools.get('https://github.com/libusb/libusb/releases/download/v%s/libusb-%s.tar.bz2' % (self.source_version, self.source_version),
                   sha256='7dce9cce9a81194b7065ee912bcd55eeffebab694ea403ffb91b67db66b1824b')
@@ -54,8 +60,9 @@ class LibusbConan(ConanFile):
                 if platform.system() == 'Darwin':
                     shutil.move('lib/libusb-1.0.0.dylib', 'lib/libusb.dylib')
                 elif platform.system() == 'Linux':
-                    self.run('ls -lR')
-                    shutil.move('lib/libusb.so.1.0.0', 'lib/libusb.so')
+                    shutil.move('lib/libusb-1.0.so.0.1.0', 'lib/libusb.so')
+                    patchelf = self.deps_cpp_info['patchelf'].rootpath + '/bin/patchelf'
+                    self.run('%s --set-soname libusb.so lib/libusb.so' % patchelf)
 
     def package(self):
         if platform.system() == 'Darwin':

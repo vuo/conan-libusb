@@ -54,7 +54,8 @@ class LibusbConan(ConanFile):
                 if platform.system() == 'Darwin':
                     shutil.move('lib/libusb-1.0.0.dylib', 'lib/libusb.dylib')
                 elif platform.system() == 'Linux':
-                    shutil.move('lib/libusb-1.0.0.so', 'lib/libusb.so')
+                    self.run('ls -lR')
+                    shutil.move('lib/libusb.so.1.0.0', 'lib/libusb.so')
 
     def package(self):
         if platform.system() == 'Darwin':

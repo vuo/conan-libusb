@@ -6,17 +6,25 @@ import platform
 class LibusbConan(ConanFile):
     name = 'libusb'
 
-    source_version = '1.0.21'
-    package_version = '3'
+    source_version = '1.0.23'
+    package_version = '0'
     version = '%s-%s' % (source_version, package_version)
 
-    build_requires = 'llvm/3.3-5@vuo/stable'
+    build_requires = (
+        'llvm/5.0.2-1@vuo/stable',
+        'macos-sdk/11.0-0@vuo/stable',
+    )
     settings = 'os', 'compiler', 'build_type', 'arch'
-    url = 'https://github.com/vuo/conan-libusb'
+    url = 'https://github.com/libusb/libusb'
     license = 'https://github.com/libusb/libusb/blob/master/COPYING'
     description = 'A library for USB device access'
     source_dir = 'libusb-%s' % source_version
-    build_dir = '_build'
+
+    build_x86_dir = '_build_x86'
+    build_arm_dir = '_build_arm'
+    install_x86_dir = '_install_x86'
+    install_arm_dir = '_install_arm'
+    install_universal_dir = '_install_universal_dir'
 
     def requirements(self):
         if platform.system() == 'Linux':
@@ -26,43 +34,68 @@ class LibusbConan(ConanFile):
 
     def source(self):
         tools.get('https://github.com/libusb/libusb/releases/download/v%s/libusb-%s.tar.bz2' % (self.source_version, self.source_version),
-                  sha256='7dce9cce9a81194b7065ee912bcd55eeffebab694ea403ffb91b67db66b1824b')
+                  sha256='db11c06e958a82dac52cf3c65cb4dd2c3f339c8a988665110e0d24d19312ad8d')
 
         self.run('mv %s/COPYING %s/%s.txt' % (self.source_dir, self.source_dir, self.name))
 
     def build(self):
-        tools.mkdir(self.build_dir)
-        with tools.chdir(self.build_dir):
-            autotools = AutoToolsBuildEnvironment(self)
+        autotools = AutoToolsBuildEnvironment(self)
 
-            # The LLVM/Clang libs get automatically added by the `requires` line,
-            # but this package doesn't need to link with them.
-            autotools.libs = ['c++abi']
+        # The LLVM/Clang libs get automatically added by the `requires` line,
+        # but this package doesn't need to link with them.
+        autotools.libs = []
 
-            autotools.flags.append('-Oz')
+        autotools.flags.append('-Oz')
 
-            if platform.system() == 'Darwin':
-                autotools.flags.append('-mmacosx-version-min=10.10')
-                autotools.link_flags.append('-Wl,-install_name,@rpath/libusb.dylib')
+        if platform.system() == 'Darwin':
+            autotools.flags.append('-isysroot %s' % self.deps_cpp_info['macos-sdk'].rootpath)
+            autotools.flags.append('-mmacosx-version-min=10.11')
+            autotools.link_flags.append('-Wl,-install_name,@rpath/libusb.dylib')
 
-            env_vars = {
-                'CC' : self.deps_cpp_info['llvm'].rootpath + '/bin/clang',
-                'CXX': self.deps_cpp_info['llvm'].rootpath + '/bin/clang++',
-            }
-            with tools.environment_append(env_vars):
+        common_configure_args = [
+            '--quiet',
+            '--disable-dependency-tracking',
+            '--disable-static',
+            '--enable-shared',
+        ]
+
+        env_vars = {
+            'CC' : self.deps_cpp_info['llvm'].rootpath + '/bin/clang',
+            'CXX': self.deps_cpp_info['llvm'].rootpath + '/bin/clang++',
+        }
+        with tools.environment_append(env_vars):
+            build_root = os.getcwd()
+
+            self.output.info("=== Build for x86_64 ===")
+            tools.mkdir(self.build_x86_dir)
+            with tools.chdir(self.build_x86_dir):
+                autotools.flags.append('-arch x86_64')
+                autotools.link_flags.append('-arch x86_64')
                 autotools.configure(configure_dir='../%s' % self.source_dir,
-                                    args=['--quiet',
-                                          '--enable-shared',
-                                          '--disable-static',
-                                          '--prefix=%s' % os.getcwd()])
-                autotools.make(args=['install'])
-                # libusb calls itself 1.0.0 regardless of the actual release version.
-                if platform.system() == 'Darwin':
-                    shutil.move('lib/libusb-1.0.0.dylib', 'lib/libusb.dylib')
-                elif platform.system() == 'Linux':
-                    shutil.move('lib/libusb-1.0.so.0.1.0', 'lib/libusb.so')
-                    patchelf = self.deps_cpp_info['patchelf'].rootpath + '/bin/patchelf'
-                    self.run('%s --set-soname libusb.so lib/libusb.so' % patchelf)
+                                    build=False,
+                                    host=False,
+                                    args=common_configure_args + [
+                                        '--prefix=%s/%s' % (build_root, self.install_x86_dir),
+                                    ])
+                autotools.make(args=['--quiet'])
+                autotools.make(target='install', args=['--quiet'])
+
+            self.output.info("=== Build for arm64 ===")
+            tools.mkdir(self.build_arm_dir)
+            with tools.chdir(self.build_arm_dir):
+                autotools.flags.remove('-arch x86_64')
+                autotools.flags.append('-arch arm64')
+                autotools.link_flags.remove('-arch x86_64')
+                autotools.link_flags.append('-arch arm64')
+                autotools.configure(configure_dir='../%s' % self.source_dir,
+                                    build=False,
+                                    host=False,
+                                    args=common_configure_args + [
+                                        '--prefix=%s/%s' % (build_root, self.install_arm_dir),
+                                        '--host=x86_64-apple-darwin15.0.0',
+                                    ])
+                autotools.make(args=['--quiet'])
+                autotools.make(target='install', args=['--quiet'])
 
     def package(self):
         if platform.system() == 'Darwin':
@@ -72,8 +105,12 @@ class LibusbConan(ConanFile):
         else:
             raise Exception('Unknown platform "%s"' % platform.system())
 
-        self.copy('*.h', src='%s/include' % self.build_dir, dst='include')
-        self.copy('libusb.%s' % libext, src='%s/lib' % self.build_dir, dst='lib')
+        tools.mkdir(self.install_universal_dir)
+        with tools.chdir(self.install_universal_dir):
+            self.run('lipo -create ../%s/lib/libusb-1.0.%s ../%s/lib/libusb-1.0.%s -output libusb.%s' % (self.install_x86_dir, libext, self.install_arm_dir, libext, libext))
+
+        self.copy('*.h', src='%s/include' % self.install_x86_dir, dst='include')
+        self.copy('libusb.%s' % libext, src=self.install_universal_dir, dst='lib')
 
         self.copy('%s.txt' % self.name, src=self.source_dir, dst='license')
 
